@@ -1,0 +1,46 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create an EC2 , RDS and S3 in AWS",
+    "Resources": {
+        "MyS3Bucket":{
+            "Type" : "AWS::S3::Bucket",
+            "Properties" : {
+                "AccessControl" : "PublicRead",
+                "BucketName" : "wordpress20160708"
+            }
+        },
+        "MyRDSMysql":{
+          "Type" : "AWS::RDS::DBInstance",
+          "Properties" :
+          {
+            "AvailabilityZone" : "us-west-1a",
+            "DBSnapshotIdentifier" : "wordpress20160710",
+            "DBSubnetGroupName" : "default",
+            "Port" : "3306",
+            "PubliclyAccessible" : true,
+            "VPCSecurityGroups" : [ "sg-78990b1c"]
+          }
+        },
+        "MyEC2Instance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "AvailabilityZone": "us-west-1a",
+                "SecurityGroupIds": ["sg-e6972a82"],
+                "InstanceType": "t2.micro",
+                "ImageId": "ami-06116566",
+                "KeyName": "devenv-key",
+                "BlockDeviceMappings": [{
+                    "DeviceName": "/dev/xvda",
+                    "Ebs": {
+                        "VolumeType": "gp2",
+                        "DeleteOnTermination": "false",
+                        "VolumeSize": "8"
+                    }
+                }, {
+                    "DeviceName": "/dev/sdk",
+                    "NoDevice": {}
+                }]
+            }
+        }
+    }
+}

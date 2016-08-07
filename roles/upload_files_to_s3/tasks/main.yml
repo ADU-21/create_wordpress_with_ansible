@@ -1,0 +1,8 @@
+---
+
+  - name: Print out S3 bucket name
+    debug: msg="{{ s3_bucket }}"
+
+  - name: Upload static files to s3
+    command: aws s3 sync --acl public-read ./roles/upload_files_to_s3/files/. s3://{{ s3_bucket }}
+

@@ -1,0 +1,55 @@
+---
+
+  - name: Get EC2 public ip
+    debug: msg="{{ hostvars['localhost'].ec2_ip }}"
+
+  - name: Update apt-get
+    sudo: yes
+    apt: update_cache=yes
+
+  - name: Ensure tools are installed by apt-get
+    sudo: yes
+    apt:
+      name: "{{ item }}"
+      state: present
+    with_items: "{{ packages }}"
+
+  - name: Delete the wordpress directory
+    sudo: yes
+    file: path=/var/www/html/wordpress state=absent
+
+  - name: Add a user for wordpress server
+    sudo: yes
+    user:
+      name: wordpress
+      shell: /bin/bash
+      home: /var/www/html
+      move_home: yes
+      createhome: yes
+
+  - name: Change the owner or wordpress home
+    sudo: yes
+    file: dest=/var/www/html owner=wordpress
+
+  - name: Clone the wordpress
+    git:
+      repo: "{{ repo }}"
+      dest: /var/www/html/wordpress
+    become: true
+    become_user: wordpress
+
+  - name: Change the mode of wp-content
+    sudo: yes
+    file: path=/var/www/html/wordpress/wp-content mode="o+w"
+    # command: chmod o+w /var/www/html/wordpress/wp-content
+
+  - name: Put in the mysql host to wordpress configure
+    command: sed -i s/localhost/{{ hostvars['localhost'].rds_host }}/ /var/www/html/wordpress/wp-config.php
+    become: true
+    become_user: wordpress
+    # template:
+
+  - name: Run the script to update DB
+    command: /var/www/html/wordpress/test.py {{ hostvars['localhost'].ec2_ip }} {{ hostvars['localhost'].rds_host }} {{ hostvars['localhost'].s3_bucket }}
+    become: true
+    become_user: wordpress

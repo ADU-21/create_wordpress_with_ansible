@@ -1,0 +1,59 @@
+---
+
+- name: Launch cloudformation and get AWS source EC2, RDS, S3
+  cloudformation:
+    stack_name: "wordpress-ansible"
+    state: "present"
+    region: "us-west-1"
+    disable_rollback: true
+    template: "./roles/get_source_with_cloudformation/template/template.json"
+  register: source
+
+- name: Print out cloudfromation return value
+  debug: msg="{{ source }}"
+
+- name: Get physical resource id for EC2, RDS, S3
+  set_fact:
+    ec2_id: "{{ source.stack_resources | selectattr('logical_resource_id', 'equalto', 'MyEC2Instance') | map(attribute='physical_resource_id') | join(',') }}"
+    rds_id: "{{ source.stack_resources | selectattr('logical_resource_id', 'equalto', 'MyRDSMysql') | map(attribute='physical_resource_id') | join(',') }}"
+    s3_bucket: "{{ source.stack_resources | selectattr('logical_resource_id', 'equalto', 'MyS3Bucket') | map(attribute='physical_resource_id') | join(',') }}"
+
+- name: Print out ec2id and rds_id
+  debug: msg="{{ ec2_id,s3_bucket,rds_id }}"
+
+- name: Get public ip by instance id
+  shell: aws ec2 describe-instances --instance-id {{ ec2_id }} --query 'Reservations[0].Instances[0].PublicIpAddress' --output text
+  register: ip
+
+- name: Get mysql address by RDS instance identifier
+  shell: aws rds describe-db-instances --db-instance-identifier {{ rds_id }} --query 'DBInstances[0].Endpoint.Address' --output text
+  register: host
+
+- name: Get text for EC2 public ip and mysql address
+  set_fact:
+    ec2_ip: "{{ ip.stdout_lines.0 }}"
+    rds_host: "{{ host.stdout_lines.0 }}"
+
+- name: Print out EC2 public ip and mysql address
+  debug: msg={{ ec2_ip, rds_host }}
+
+- name: Add new instance to the host group
+  local_action: add_host >
+      hostname={{ ec2_ip }}
+      groupname=test
+
+- name: Waiting for SSH on come up
+  local_action: wait_for host={{ ec2_ip }} port=22 timeout=320 state=started
+
+- name: Wait for authentication to be enable
+  local_action: >
+      shell
+      ssh {{ ec2_ip }}
+      -l ubuntu
+      -i ~/.ssh/devenv-key.pem
+      -oPreferredAuthentications=publickey
+      -oStrictHostKeyChecking=no
+  register: passwordless_ssh_connection
+  until: passwordless_ssh_connection|success
+  delay: 12
+  retries: 100 # 20 minutes max

@@ -1,0 +1,15 @@
+---
+
+- hosts: local
+  connection: local
+  gather_facts: False
+  roles:
+    - get_source_with_cloudformation
+    - upload_files_to_s3
+
+
+- hosts: test
+  roles:
+      - config_instance
+      - test_wordpress
+

@@ -1,0 +1,9 @@
+---
+
+  - name: Get content from mysite
+    action: uri url=http://0.0.0.0/wordpress return_content=yes
+    register: webpage
+
+  - name: Ensure wordpress is in webpage's content
+    fail: msg='service is not good'
+    when: "'wordpress' not in webpage.content"
